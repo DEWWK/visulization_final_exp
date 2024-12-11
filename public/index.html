@@ -1,0 +1,447 @@
+<head></head>
+<title>齐鲁气象实况</title>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    #response {
+        position: absolute;
+        right: 5px;
+        top: 18.5%;
+        width: 18.8%;
+        height: 100px;
+        padding: 10px;
+        font-size: 14px;
+        color: #333;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        min-height: 50px;
+        white-space: pre-wrap;
+        z-index: 10001;
+    }
+
+    #userInput {
+        position: absolute;
+        right: 5px;
+        top: 9%;
+        width: 20%;
+        height: 80px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        resize: none;
+        margin-bottom: 10px;
+        z-index: 10000;
+    }
+
+    #submitButton {
+        position: absolute;
+        top: 5%;
+        right: 2.5%;
+        padding: 6px 12px;
+        font-size: 14px;
+        cursor: pointer;
+        background-color: #4c86af;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        z-index: 1000000;
+    }
+
+    #weatherChartContainer {
+        display: none;
+        position: absolute;
+        top: 540px;
+        left: 5px;
+        width: 400px;
+        /* 宽度固定 */
+        height: 300px;
+        /* 高度固定 */
+        background-color: white;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 9999;
+        padding: 10px;
+    }
+
+    svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    #runButton {
+        position: absolute;
+        top: 5px;
+        left: 1600px;
+        padding: 6px 12px;
+        font-size: 14px;
+        cursor: pointer;
+        background-color: #4c86af;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        z-index: 9999;
+    }
+
+    #updateTime {
+        position: absolute;
+        top: 12px;
+        left: 1350;
+        font-size: 14px;
+        color: black;
+        z-index: 9999;
+    }
+
+    #coordinates {
+        position: absolute;
+        top: 200px;
+        left: 20px;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        font-size: 14px;
+        z-index: 9999;
+        display: none;
+    }
+
+    #toggleWeatherButton {
+        display: none;
+        position: absolute;
+        top: 100px;
+        left: 1480px;
+        padding: 10px 20px;
+        font-size: 12px;
+        cursor: pointer;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        z-index: 9999;
+        width: 120;
+    }
+
+    #weatherforecast {
+        display: none;
+        position: absolute;
+        top: 365px;
+        left: 5px;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        font-size: 14px;
+        z-index: 9999;
+    }
+
+    /* 使按钮hover时变色 */
+    #runButton:hover {
+        background-color: #45a049;
+    }
+</style>
+</head>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<div id="weatherChartContainer">
+    <svg id="weatherChart"></svg>
+</div>
+<button id="toggleWeatherButton">隐藏天气预报</button>
+<div style="height: 100vh; width: 100%; position: absolute; top: 0; left: 0;" id="map" />
+</div>
+<div style="top: 0; left: 0;" id="coordinates">点击地图获取经纬度</div>
+<div id="weatherforecast">点击地图以显示天气预报</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<canvas id="weatherChart" width=200px height=100px></canvas>
+
+
+<button id="runButton" onclick="updateTime(); handleButtonClick();">刷新</button>
+<div id="updateTime">上一次更新时间：</div>
+<script>
+    document.addEventListener("DOMContentLoaded", updateTime);
+    async function handleButtonClick() {
+        const status = document.getElementById('status');
+        const response = await fetch('http://localhost:8080/run-scripts', { method: 'POST' });
+        alert("请求成功!");
+    }
+    async function updateTime() {
+        const timeResponse = await fetch('/data/upd_time.txt');
+        if (!timeResponse.ok) {
+            throw new Error('Failed to fetch time.txt');
+        }
+        const timeText = await timeResponse.text();
+        const updateTimeElement = document.getElementById("updateTime");
+        // 更新文本内容
+        updateTimeElement.textContent = `${timeText}`;
+    }
+</script>
+<script>
+    // 按钮点击事件
+    document.getElementById('toggleWeatherButton').addEventListener('click', () => {
+        toggleWeatherForecast();
+    });
+
+    // 切换天气预报显示/隐藏
+    function toggleWeatherForecast() {
+        const weatherElement = document.getElementById('weatherforecast');
+        const chartContainer = document.getElementById('weatherChartContainer');
+        const button = document.getElementById('toggleWeatherButton');
+
+        // 检查天气预报和图表的显示状态
+        const isWeatherVisible = weatherElement.style.display === 'block';
+        const isChartVisible = chartContainer.style.display === 'block';
+
+        if (isWeatherVisible && isChartVisible) {
+            // 如果两者都显示，则隐藏两者
+            weatherElement.style.display = 'none';
+            chartContainer.style.display = 'none';
+            <!-- toggleWeatherButton.style.display = 'none'; -->
+            button.textContent = '显示天气预报';
+        } else {
+            // 否则，显示两者
+            weatherElement.style.display = 'block';
+            chartContainer.style.display = 'block';
+            button.textContent = '隐藏天气预报';
+        }
+
+    }
+
+
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+<script>
+    // 加载 CSV 数据并解析
+    async function loadWeatherData() {
+        try {
+            const response = await fetch('/data/city_inf_forecast.csv');
+            if (!response.ok) {
+                return [];
+            }
+            const csvText = await response.text();
+            return parseCSV(csvText);
+        } catch (error) {
+            console.error("Error loading weather data:", error);
+            return [];
+        }
+    }
+
+    function parseCSV(csvText) {
+        const rows = csvText.split('\n').filter(row => row.trim());
+        const headers = rows[0].split(',').map(h => h.trim());
+        const data = rows.slice(1).map(row => {
+            const values = row.split(',');
+            return headers.reduce((acc, header, index) => {
+                acc[header] = values[index] ? values[index].trim() : null;
+                return acc;
+            }, {});
+        });
+        return data;
+    }
+
+    // 查找天气数据
+    function findWeatherData(weatherData, lng, lat) {
+        const precision = 0.05; // 经纬度匹配精度
+        return weatherData.filter((data) => {
+            const dataLng = parseFloat(data.lng);
+            const dataLat = parseFloat(data.lat);
+            if (!isNaN(dataLng) && !isNaN(dataLat)) {
+                const lngDiff = Math.abs(dataLng - lng);
+                const latDiff = Math.abs(dataLat - lat);
+                return lngDiff <= precision && latDiff <= precision;
+            } else {
+                return false;
+            }
+        });
+    }
+
+    // 绘制 D3.js 图表
+    function drawChart(data) {
+        const svg = d3.select("#weatherChart");
+        const margin = { top: 20, right: 30, bottom: 40, left: 40 };
+        const width = svg.node().clientWidth - margin.left - margin.right;
+        const height = svg.node().clientHeight - margin.top - margin.bottom;
+
+        // 清空现有图表
+        svg.selectAll("*").remove();
+
+        // 创建图表的可视区域
+        const g = svg.append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // 创建 x 和 y 轴的比例尺
+        const x = d3.scaleBand()
+            .domain(data.map(d => d.date))
+            .range([0, width])
+            .padding(0.1);
+
+        // 动态计算 y 轴的最大值和最小值，避免负温度不显示
+        const y = d3.scaleLinear()
+            .domain([d3.min(data, d => Math.min(d.daytemp, d.nighttemp)), d3.max(data, d => Math.max(d.daytemp, d.nighttemp))])
+            .nice()
+            .range([height, 0]);
+
+        // 创建 x 轴
+        g.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x))
+            .selectAll(".x-axis text")
+            .style("font-size", "12px")
+            .style("text-anchor", "middle");
+
+        // 创建 y 轴，并为每个标签添加 "°C"
+        g.append("g")
+            .call(d3.axisLeft(y).tickFormat(d => `${d}°C`))
+            .style("font-size", "12px");
+
+        // 绘制白天气温的折线图
+        g.append("path")
+            .data([data])
+            .attr("fill", "none")
+            .attr("stroke", "red")
+            .attr("stroke-width", 2)
+            .attr("d", d3.line()
+                .x(d => x(d.date) + x.bandwidth() / 2)
+                .y(d => y(d.daytemp))
+            );
+
+        // 绘制夜间气温的折线图
+        g.append("path")
+            .data([data])
+            .attr("fill", "none")
+            .attr("stroke", "blue")
+            .attr("stroke-width", 2)
+            .attr("d", d3.line()
+                .x(d => x(d.date) + x.bandwidth() / 2)
+                .y(d => y(d.nighttemp))
+            );
+
+        // 添加图例
+        const legend = g.append("g")
+            .attr("transform", `translate(${width - 120}, 10)`);
+
+        legend.append("rect")
+            .attr("x", 0)
+            .attr("y", 0)
+            .attr("width", 12)
+            .attr("height", 12)
+            .attr("fill", "red");
+
+        legend.append("text")
+            .attr("x", 20)
+            .attr("y", 10)
+            .attr("dy", ".35em")
+            .text("白天气温")
+            .style("font-size", "12px");
+
+        legend.append("rect")
+            .attr("x", 0)
+            .attr("y", 20)
+            .attr("width", 12)
+            .attr("height", 12)
+            .attr("fill", "blue");
+
+        legend.append("text")
+            .attr("x", 20)
+            .attr("y", 30)
+            .attr("dy", ".35em")
+            .text("夜间气温")
+            .style("font-size", "12px");
+    }
+
+
+
+    // 获取坐标
+    function getCoordinates() {
+        const coordinatesText = document.getElementById("coordinates")?.innerText;
+        if (!coordinatesText) {
+            return null;
+        }
+
+        const regex = /Longitude:\s*(-?\d+(\.\d+)?),\s*Latitude:\s*(-?\d+(\.\d+)?)/;
+        const match = coordinatesText.match(regex);
+
+        if (match) {
+            const lng = parseFloat(match[1]);
+            const lat = parseFloat(match[3]);
+            return { lng, lat };
+        } else {
+            return null;
+        }
+    }
+
+    // 更新天气预报
+    async function updateWeatherForecast() {
+        const forecastElement = document.getElementById("weatherforecast");
+        const coordinates = getCoordinates();
+
+        if (!coordinates) {
+            forecastElement.innerHTML = "<p>无数据</p>"; // 无经纬度时显示无数据
+            weatherforecast.style.display = 'none';
+            weatherChartContainer.style.display = 'none';
+            return;
+        }
+
+        const { lng, lat } = coordinates;
+        const weatherData = await loadWeatherData();
+        const forecastData = findWeatherData(weatherData, lng, lat);
+
+        if (forecastData.length > 0) {
+            let forecastHTML = `<h3>天气预报 (${forecastData[0].city})</h3>`;
+            forecastHTML += "<ul>";
+            forecastData.forEach((data) => {
+                forecastHTML += `
+                        <li>
+                            <strong>${data.date}</strong>: 
+                            白天 - ${data.dayweather}, ${data.daytemp}°C; 
+                            夜晚 - ${data.nightweather}, ${data.nighttemp}°C
+                        </li>
+                    `;
+            });
+            forecastHTML += "</ul>";
+            forecastElement.innerHTML = forecastHTML;
+            weatherforecast.style.display = 'block';
+            <!-- toggleWeatherButton.style.display = 'block'; -->
+
+            // 提取温度数据并绘制图表
+            const dayTemps = forecastData.map(data => ({ date: data.date, daytemp: parseFloat(data.daytemp), nighttemp: parseFloat(data.nighttemp) }));
+            drawChart(dayTemps);
+            weatherChartContainer.style.display = 'block';
+        } else {
+            forecastElement.innerHTML = `<p>无天气数据 (${lng.toFixed(2)}, ${lat.toFixed(2)})</p>`;
+        }
+    }
+
+    // 定时更新天气预报
+    setInterval(updateWeatherForecast, 100); // 每2秒检查一次
+</script>
+
+
+<textarea id="userInput" placeholder="输入您的问题"></textarea><br>
+<button id="submitButton">AI 建议</button>
+<p>AI 回复：</p>
+<div id="response"></div>
+
+<script>
+    document.getElementById('submitButton').addEventListener('click', async () => {
+        const userInput = document.getElementById('userInput').value;
+        const responseDiv = document.getElementById('response');
+
+        try {
+            const response = await fetch('http://localhost:5000/get_weather_advice', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ input: userInput }),
+            });
+
+            if (!response.ok) throw new Error('请求失败');
+            const data = await response.json();
+            // console.log('Response Data:', data);
+            responseDiv.textContent = data.advice;
+        } catch (error) {
+            responseDiv.textContent = '发生错误: ' + error.message;
+        }
+    });
+</script>

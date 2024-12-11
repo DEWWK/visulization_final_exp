@@ -1,0 +1,37 @@
+{
+  "name": "72bz31--run",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@antv/l7": "2.22.3",
+    "@antv/l7-maps": "2.22.3",
+    "axios": "^1.7.9",
+    "csv-parser": "^3.0.0",
+    "csv-stringify": "^6.5.2",
+    "echarts": "^5.5.1",
+    "json2csv": "^6.0.0-alpha.2",
+    "react": "18.1.0",
+    "react-dom": "18.1.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  },
+  "devDependencies": {
+    "react-scripts": "latest"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
